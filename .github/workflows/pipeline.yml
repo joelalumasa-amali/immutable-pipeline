@@ -1,0 +1,87 @@
+name: Immutable Artifact Pipeline
+
+on:
+  push:
+    branches: [main]
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: fincorp-app
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  build-scan-push:
+    name: Build, Scan and Push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Configure CodeArtifact for pip
+        run: |
+          CODEARTIFACT_TOKEN=$(aws codeartifact get-authorization-token \
+            --domain fincorp-artifacts \
+            --domain-owner 605199373880 \
+            --query authorizationToken \
+            --output text)
+          pip config set global.index-url \
+            https://aws:${CODEARTIFACT_TOKEN}@fincorp-artifacts-605199373880.d.codeartifact.us-east-1.amazonaws.com/pypi/fincorp-pip/simple/
+
+      - name: Build Docker image
+        run: |
+          docker build -t $ECR_REPOSITORY:$IMAGE_TAG ./app
+
+      - name: Push image to ECR
+        id: push-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker tag $ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Wait for ECR scan results
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          echo "Waiting for scan to complete..."
+          sleep 30
+          aws ecr wait image-scan-complete \
+            --repository-name $ECR_REPOSITORY \
+            --image-id imageTag=$IMAGE_TAG \
+            --region $AWS_REGION || true
+
+      - name: Check scan results and fail on High/Critical
+        run: |
+          FINDINGS=$(aws ecr describe-image-scan-findings \
+            --repository-name $ECR_REPOSITORY \
+            --image-id imageTag=$IMAGE_TAG \
+            --region $AWS_REGION \
+            --query 'imageScanFindings.findingSeverityCounts' \
+            --output json)
+
+          echo "Scan findings: $FINDINGS"
+
+          HIGH=$(echo $FINDINGS | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('HIGH',0))")
+          CRITICAL=$(echo $FINDINGS | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('CRITICAL',0))")
+
+          echo "HIGH: $HIGH, CRITICAL: $CRITICAL"
+
+          if [ "$HIGH" -gt "0" ] || [ "$CRITICAL" -gt "0" ]; then
+            echo "FAILED: High or Critical vulnerabilities found. Blocking deployment."
+            exit 1
+          fi
+
+          echo "PASSED: No High or Critical vulnerabilities found."
