@@ -56,18 +56,27 @@ jobs:
             --repository-name $ECR_REPOSITORY \
             --image-id imageTag=$IMAGE_TAG \
             --region $AWS_REGION \
-            --query 'imageScanFindings.findingSeverityCounts' \
             --output json)
 
-          echo "Scan findings: $FINDINGS"
+          echo "Raw findings: $FINDINGS"
 
-          HIGH=$(echo $FINDINGS | python3 -c "import sys,json; d=json.load(sys.stdin) or {}; print(d.get('HIGH',0))")
-          CRITICAL=$(echo $FINDINGS | python3 -c "import sys,json; d=json.load(sys.stdin) or {}; print(d.get('CRITICAL',0))")
+          HIGH=$(echo $FINDINGS | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+counts = data.get('imageScanFindings', {}).get('findingSeverityCounts', {}) or {}
+print(counts.get('HIGH', 0))
+")
+          CRITICAL=$(echo $FINDINGS | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+counts = data.get('imageScanFindings', {}).get('findingSeverityCounts', {}) or {}
+print(counts.get('CRITICAL', 0))
+")
 
           echo "HIGH: $HIGH, CRITICAL: $CRITICAL"
 
           if [ "$HIGH" -gt "0" ] || [ "$CRITICAL" -gt "0" ]; then
-            echo "FAILED: High or Critical vulnerabilities found. Blocking deployment."
+            echo "FAILED: High or Critical vulnerabilities found."
             exit 1
           fi
 
