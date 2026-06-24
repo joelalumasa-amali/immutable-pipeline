@@ -40,7 +40,6 @@ jobs:
         run: |
           docker tag $ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
       - name: Wait for ECR scan results
         run: |
@@ -62,8 +61,8 @@ jobs:
 
           echo "Scan findings: $FINDINGS"
 
-          HIGH=$(echo $FINDINGS | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('HIGH',0))")
-          CRITICAL=$(echo $FINDINGS | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('CRITICAL',0))")
+          HIGH=$(echo $FINDINGS | python3 -c "import sys,json; d=json.load(sys.stdin) or {}; print(d.get('HIGH',0))")
+          CRITICAL=$(echo $FINDINGS | python3 -c "import sys,json; d=json.load(sys.stdin) or {}; print(d.get('CRITICAL',0))")
 
           echo "HIGH: $HIGH, CRITICAL: $CRITICAL"
 
