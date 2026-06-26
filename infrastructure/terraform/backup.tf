@@ -1,3 +1,25 @@
+resource "aws_kms_key" "backup_primary" {
+  provider                = aws.primary
+  description             = "KMS key for primary backup vault encryption"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+
+  tags = {
+    Name = "${var.project_name}-backup-primary-kms"
+  }
+}
+
+resource "aws_kms_key" "backup_dr" {
+  provider                = aws.dr
+  description             = "KMS key for DR backup vault encryption"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+
+  tags = {
+    Name = "${var.project_name}-backup-dr-kms"
+  }
+}
+
 resource "aws_iam_role" "backup" {
   provider = aws.primary
   name     = "${var.project_name}-backup-role"
@@ -25,13 +47,15 @@ resource "aws_iam_role_policy_attachment" "backup_restore" {
 }
 
 resource "aws_backup_vault" "primary" {
-  provider = aws.primary
-  name     = "${var.project_name}-backup-vault"
+  provider    = aws.primary
+  name        = "${var.project_name}-backup-vault"
+  kms_key_arn = aws_kms_key.backup_primary.arn
 }
 
 resource "aws_backup_vault" "dr" {
-  provider = aws.dr
-  name     = "${var.project_name}-dr-vault"
+  provider    = aws.dr
+  name        = "${var.project_name}-dr-vault"
+  kms_key_arn = aws_kms_key.backup_dr.arn
 }
 
 resource "aws_backup_plan" "main" {
