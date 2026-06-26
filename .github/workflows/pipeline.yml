@@ -10,9 +10,56 @@ env:
   IMAGE_TAG: ${{ github.sha }}
 
 jobs:
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        run: pip install pytest flake8 flask
+
+      - name: Lint with flake8
+        run: flake8 app/
+
+      - name: Run unit tests
+        run: pytest app/test_app.py -v
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform format check
+        run: terraform fmt -check -recursive
+        working-directory: infrastructure/terraform
+
+      - name: Terraform init
+        run: terraform init -backend=false
+        working-directory: infrastructure/terraform
+
+      - name: Terraform validate
+        run: terraform validate
+        working-directory: infrastructure/terraform
+
+      - name: Install hadolint
+        run: |
+          wget -qO /usr/local/bin/hadolint \
+            https://github.com/hadolint/hadolint/releases/latest/download/hadolint-Linux-x86_64
+          chmod +x /usr/local/bin/hadolint
+
+      - name: Lint Dockerfile
+        run: hadolint app/Dockerfile
+
   build-scan-push:
     name: Build, Scan and Push
     runs-on: ubuntu-latest
+    needs: code-quality
 
     steps:
       - name: Checkout code
