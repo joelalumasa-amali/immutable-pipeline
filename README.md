@@ -111,7 +111,7 @@ The pipeline fails immediately if any `HIGH` or `CRITICAL` vulnerabilities are f
 
 ### CodeArtifact Repositories
 
-![CodeArtifact domain](docs/screenshots/codeartifact-domain.png)
+The `fincorp-artifacts` domain and its `fincorp-pip` / `fincorp-npm` repositories are provisioned by Terraform (`infrastructure/terraform/codeartifact.tf`). See the note above regarding the PyPI proxy limitation.
 
 ---
 
@@ -127,17 +127,13 @@ The primary RDS MySQL instance in `us-east-1` is backed up daily by AWS Backup. 
 - **Cross-region copy:** Each recovery point is automatically copied to `us-west-2`.
 - **KMS encryption:** Both vaults use dedicated KMS keys with automatic key rotation enabled.
 
-![Primary backup vault](docs/screenshots/backup-vault-primary.png)
-
-![DR backup vault](docs/screenshots/backup-vault-dr.png)
-
-![Backup plan](docs/screenshots/backup-plan.png)
-
 ### Primary RDS Instance
 
-![RDS primary instance](docs/screenshots/rds-primary.png)
+![RDS primary instance — fincorp-primary-db Available, db.t3.micro, us-east-1](docs/screenshots/rds-primary-list.png)
 
-![RDS encryption detail](docs/screenshots/rds-encrypted.png)
+![RDS instance detail — Connectivity & security tab](docs/screenshots/rds-primary.png)
+
+![RDS VPC isolation — security group allows port 3306 from 172.31.0.0/16 only](docs/screenshots/rds-encrypted.png)
 
 ---
 
@@ -183,11 +179,17 @@ bash scripts/dr_failover.sh
 | 6 | Wait for availability and print endpoint | 3–5 min |
 | **Total** | | **~18–38 min** |
 
-![DR script terminal output](docs/screenshots/dr-script-output.png)
+![DR script — Step 1 creating snapshot in us-east-1 (June 26 run)](docs/screenshots/dr-script-output.png)
 
-![Restored RDS in us-west-2](docs/screenshots/rds-dr-restored.png)
+![DR script — CLI verify + snapshot creation in progress (June 29 run)](docs/screenshots/dr-script-output-2.png)
 
-![Restored instance endpoint](docs/screenshots/rds-dr-endpoint.png)
+![Primary DB status changes to Deleting (Step 4 — simulated failure)](docs/screenshots/rds-dr-deleting.png)
+
+![fincorp-restored-db Creating in us-west-2 (Step 5 — restore in progress)](docs/screenshots/rds-dr-creating.png)
+
+![fincorp-restored-db Available in us-west-2 (restore complete)](docs/screenshots/rds-dr-restored.png)
+
+![AWS CLI confirms endpoint and available status in us-west-2](docs/screenshots/rds-dr-endpoint.png)
 
 ---
 
