@@ -11,7 +11,6 @@ variable "project_name" {
 }
 
 variable "db_password" {
-  default   = "FinCorp2024!"
   sensitive = true
 }
 

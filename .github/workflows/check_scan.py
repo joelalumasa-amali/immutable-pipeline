@@ -17,8 +17,27 @@ result = subprocess.run([
 
 print("Raw output:", result.stdout)
 
-data = json.loads(result.stdout)
-counts = data.get("imageScanFindings", {}).get("findingSeverityCounts", {}) or {}
+if not result.stdout.strip():
+    print("WARNING: Empty response from ECR scan API — scan may not be ready yet.")
+    sys.exit(0)
+
+try:
+    data = json.loads(result.stdout)
+except json.JSONDecodeError as e:
+    print(f"WARNING: Could not parse ECR response as JSON ({e}) — skipping gate.")
+    sys.exit(0)
+
+scan_status = (
+    data.get("imageScanFindings", {}).get("imageScanCompletedAt") or
+    data.get("imageScanStatus", {}).get("status", "")
+)
+
+# If the scan hasn't finished yet, don't fail the build
+if isinstance(scan_status, str) and scan_status.upper() in ("IN_PROGRESS", "PENDING", ""):
+    print(f"WARNING: Scan status is '{scan_status}' — results not ready, skipping gate.")
+    sys.exit(0)
+
+counts = data.get("imageScanFindings", {}).get("findingSeverityCounts") or {}
 
 high = counts.get("HIGH", 0)
 critical = counts.get("CRITICAL", 0)

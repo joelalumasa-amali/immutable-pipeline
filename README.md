@@ -91,6 +91,8 @@ Every commit to `main` triggers a two-stage GitHub Actions pipeline. The `code-q
 
 AWS CodeArtifact acts as an authenticated proxy for npm and pip registries. All package installs during builds resolve through CodeArtifact, giving FinCorp full visibility and control over third-party dependencies. A domain-level permissions policy restricts access to the current AWS account only.
 
+> **Note:** The CodeArtifact domain and pip/npm repositories are fully provisioned by Terraform. However, the CI pipeline currently installs Python dependencies directly from PyPI rather than routing through the CodeArtifact proxy. This is due to a root account limitation: `GetServiceBearerToken` (required to authenticate the pip index URL) is not available under the IAM credentials used in CI. The infrastructure is in place and ready; routing through CodeArtifact can be enabled once a non-root IAM principal with `codeartifact:GetAuthorizationToken` is available.
+
 ### Container Registry — Amazon ECR
 
 - **Tag Immutability:** `ENABLED` — a commit SHA tag cannot be reused or overwritten after push.

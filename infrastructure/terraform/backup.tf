@@ -47,15 +47,17 @@ resource "aws_iam_role_policy_attachment" "backup_restore" {
 }
 
 resource "aws_backup_vault" "primary" {
-  provider    = aws.primary
-  name        = "${var.project_name}-backup-vault"
-  kms_key_arn = aws_kms_key.backup_primary.arn
+  provider      = aws.primary
+  name          = "${var.project_name}-backup-vault"
+  kms_key_arn   = aws_kms_key.backup_primary.arn
+  force_destroy = true
 }
 
 resource "aws_backup_vault" "dr" {
-  provider    = aws.dr
-  name        = "${var.project_name}-dr-vault"
-  kms_key_arn = aws_kms_key.backup_dr.arn
+  provider      = aws.dr
+  name          = "${var.project_name}-dr-vault"
+  kms_key_arn   = aws_kms_key.backup_dr.arn
+  force_destroy = true
 }
 
 resource "aws_backup_plan" "main" {

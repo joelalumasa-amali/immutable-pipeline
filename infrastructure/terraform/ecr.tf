@@ -2,6 +2,7 @@ resource "aws_ecr_repository" "app" {
   provider             = aws.primary
   name                 = "${var.project_name}-app"
   image_tag_mutability = "IMMUTABLE"
+  force_delete         = true
 
   image_scanning_configuration {
     scan_on_push = true
